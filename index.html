@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>web-aviso · Free Digital Marketing Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff; --ink:#0a0a0a; --muted:#71717a; --line:#e4e4e7; --line-strong:#d4d4d8;
+    --brand:#0a0a0a; --accent:#2563eb;
+    --good:#16a34a; --warn:#ca8a04; --bad:#dc2626;
+    --radius:12px; --radius-sm:8px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;font-size:15px}
+  .container{max-width:1040px;margin:0 auto;padding:0 20px}
+  
+  /* Nav - ultra clean */
+  .nav{position:sticky;top:0;z-index:40;background:#ffffff;border-bottom:1px solid var(--line)}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .brand{display:flex;align-items:center;gap:9px;font-family:Georgia, 'Times New Roman', serif;font-weight:bold;font-style:italic;font-size:20px;letter-spacing:-.01em}
+  .brand-mark{width:22px;height:22px;border-radius:6px;background:var(--brand)}
+  .nav-cta{display:flex;gap:8px}
+
+  /* Hero - pure white, spacious */
+  .hero{padding:72px 0 32px;background:#ffffff}
+  .eyebrow{display:inline-flex;align-items:center;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:#f4f4f5}
+  .hero h1{font-size:clamp(32px,5vw,48px);line-height:1.1;margin:16px 0 0;letter-spacing:-.02em;font-weight:700;max-width:720px}
+  
+  /* Audit bar - minimal */
+  .audit{margin-top:40px;background:#ffffff;border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+  .audit-row{display:flex;gap:8px;flex-wrap:wrap}
+  .field{flex:1;min-width:240px;position:relative}
+  .field input{width:100%;padding:11px 12px 11px 36px;border:1px solid var(--line);border-radius:var(--radius-sm);background:#ffffff;font-size:14px;color:var(--ink);outline:none;transition:.12s}
+  .field input:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(0,0,0,.06)}
+  .field input::placeholder{color:#a1a1aa}
+  .field svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);opacity:.5}
+  .btn{appearance:none;border:none;cursor:pointer;padding:10px 14px;border-radius:var(--radius-sm);font-weight:500;font-size:14px;transition:.12s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-primary:hover{background:#18181b}
+  .btn-ghost{background:#ffffff;color:var(--ink);border:1px solid var(--line)}
+  .btn-ghost:hover{background:#f9f9fb}
+  .hint{font-size:12px;color:var(--muted);margin:10px 2px 0}
+
+  /* Layout */
+  section{margin:48px 0}
+  .grid-2{display:grid;grid-template-columns:1.15fr .85fr;gap:24px}
+  @media(max-width:960px){.grid-2{grid-template-columns:1fr}}
+  .card{background:#ffffff;border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+  h2{font-size:18px;margin:0 0 4px;font-weight:600;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 18px;line-height:1.45}
+
+  /* Score */
+  .score{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+  .ring{position:relative;width:140px;height:140px;flex:0 0 140px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring .num b{font-size:38px;line-height:1;font-weight:700;letter-spacing:-.02em}
+  .ring .num span{font-size:11px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.04em}
+  .grade{margin-bottom:8px}
+  .pill{display:inline-flex;align-items:center;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:500}
+  .pill.good{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .pill.warn{background:#fefce8;color:#a16207;border:1px solid #fde68a}
+  .pill.bad{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+
+  .subscores{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:20px}
+  .ss{border:1px solid var(--line);border-radius:10px;padding:12px;background:#ffffff}
+  .ss .top{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .ss .val{font-size:22px;font-weight:600;margin:0 0 8px;letter-spacing:-.01em}
+  .bar{height:6px;background:#f4f4f5;border-radius:6px;overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:6px}
+
+  /* Plan */
+  .plan{display:grid;gap:12px}
+  .group{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#ffffff}
+  .group h3{margin:0;padding:12px 16px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid var(--line);background:#fafafa}
+  .item{padding:16px;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:none}
+  .item b{font-size:14px;font-weight:550;display:block;margin-bottom:4px}
+  .why{color:var(--muted);font-size:13.5px;line-height:1.5;margin:0}
+  .meta{font-size:12px;color:var(--muted);margin-top:8px}
+  .cta-inline{margin-top:8px}
+  .cta-inline a{font-size:13px;font-weight:500;color:var(--accent);text-decoration:none}
+  .cta-inline a:hover{text-decoration:underline}
+
+  /* Lists */
+  .list{display:grid}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .row:last-child{border-bottom:none}
+  .tag{margin-left:auto;font-size:11px;font-weight:500;padding:3px 7px;border-radius:6px;border:1px solid}
+  .tag.ok{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
+  .tag.no{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+  .tag.part{background:#fffbeb;color:#a16207;border-color:#fde68a}
+
+  /* ROI - white */
+  .roi{border:1px solid var(--line);border-radius:var(--radius);padding:24px;background:#fafafa}
+  .roi h2{margin-bottom:6px}
+  .roi-grid{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin:16px 0}
+  .roi label{font-size:12px;color:var(--muted);display:block;margin-bottom:5px;font-weight:500}
+  .roi input{padding:9px 10px;border-radius:var(--radius-sm);border:1px solid var(--line);background:#ffffff;color:var(--ink);width:140px;font-size:14px;outline:none}
+  .roi input:focus{border-color:var(--ink)}
+  .roi .result{font-size:32px;font-weight:700;margin:8px 0 2px;letter-spacing:-.02em}
+
+  /* Gate */
+  .gate{border:1px dashed var(--line-strong);border-radius:var(--radius);padding:28px;text-align:center;background:#ffffff}
+  .gate form{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+  .gate input{padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);font-size:14px;min-width:260px;background:#ffffff}
+  .gate input:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px rgba(0,0,0,.06)}
+  .consent{font-size:12px;color:var(--muted);max-width:520px;margin:12px auto 0;line-height:1.4}
+
+  /* Table */
+  .table{width:100%;border-collapse:collapse;font-size:14px}
+  .table th,.table td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--line)}
+  .table th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;letter-spacing:.04em;background:#fafafa}
+  .table tr:last-child td{border-bottom:none}
+  .win{color:var(--good);font-weight:550} .lose{color:var(--muted)}
+
+  /* Final CTA */
+  .final{background:var(--brand);color:#fff;border-radius:var(--radius);padding:36px;text-align:center}
+  .final h2{color:#fff;font-size:22px;margin-bottom:8px}
+  .final p{opacity:.8;margin:0 auto 18px;max-width:520px;font-size:14px}
+  .final .btn{background:#fff;color:#000}
+  .final .btn:hover{background:#f4f4f5}
+
+  footer{color:#a1a1aa;font-size:12px;text-align:center;padding:40px 0;border-top:1px solid var(--line);margin-top:64px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="container nav-inner">
+    <div class="brand">web-aviso</div>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="https://www.web-aviso.com">Website</a>
+      <a class="btn btn-primary" href="https://www.web-aviso.com/contact">Book call</a>
+    </div>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="container">
+    <h1>Free Digital Marketing Audit</h1>
+    
+    <div class="audit">
+      <div class="audit-row">
+        <div class="field">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.3-4.3M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+          <input id="url" type="text" placeholder="yourbusiness.co.uk" value="yourbusiness.co.uk">
+        </div>
+        <div class="field">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
+          <input id="competitor" type="text" placeholder="Competitor (optional)">
+        </div>
+        <button class="btn btn-primary" onclick="runAudit()">Run audit</button>
+      </div>
+      <div class="hint">Demo uses simulated data. Production connects to real APIs.</div>
+    </div>
+  </div>
+</header>
+
+<main class="container" id="results">
+  <section class="grid-2">
+    <div class="card">
+      <h2>Marketing Health Score</h2>
+      <p class="sub" id="urlLabel"></p>
+      <div class="score">
+        <div class="ring">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r="62" stroke="#f4f4f5" stroke-width="10" fill="none"/>
+            <circle id="ringFill" cx="70" cy="70" r="62" stroke="#0a0a0a" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="390" stroke-dashoffset="390"/>
+          </svg>
+          <div class="num"><b id="scoreNum">0</b><span>out of 100</span></div>
+        </div>
+        <div style="flex:1;min-width:240px">
+          <div class="grade" id="grade"></div>
+          <p id="scoreText" style="color:var(--muted);margin:0 0 14px;font-size:14px"></p>
+          <button class="btn btn-ghost" onclick="document.getElementById('plan').scrollIntoView({behavior:'smooth'})">View action plan</button>
+        </div>
+      </div>
+      <div class="subscores" id="subscores"></div>
+    </div>
+
+    <div class="card">
+      <h2>AI Search Visibility</h2>
+      <p class="sub">Can ChatGPT, Perplexity & Google AI find you?</p>
+      <div class="list" id="aisoRows"></div>
+      <div class="cta-inline" style="margin-top:12px"><a href="https://www.web-aviso.com/aiso-audit">Get full AISO audit →</a></div>
+    </div>
+  </section>
+
+  <section id="plan">
+    <h2>Prioritised Action Plan</h2>
+    <p class="sub">Ranked by impact vs effort.</p>
+    <div class="plan" id="planGroups"></div>
+  </section>
+
+  <section class="grid-2">
+    <div class="card">
+      <h2>Local SEO Snapshot</h2>
+      <div class="list" id="localRows"></div>
+    </div>
+    <div class="card">
+      <h2>You vs Competitor</h2>
+      <div id="cmpWrap"><p class="sub" style="margin:0">Add a competitor to compare.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="roi">
+      <h2>Cost of inaction</h2>
+      <p class="sub" style="margin:0 0 4px">Estimated monthly revenue left on the table.</p>
+      <div class="roi-grid">
+        <div><label>Monthly visitors</label><input type="number" id="visitors" value="1200"></div>
+        <div><label>Conversion %</label><input type="number" id="conv" value="2" step="0.1"></div>
+        <div><label>Avg value £</label><input type="number" id="aov" value="150"></div>
+        <button class="btn btn-primary" onclick="calcROI()">Calculate</button>
+      </div>
+      <div class="result" id="roiResult">£—</div>
+      <small id="roiNote" style="color:var(--muted);font-size:12px"></small>
+    </div>
+  </section>
+
+  <section>
+    <div class="gate">
+      <h2>Get your PDF report</h2>
+      <p class="sub" style="margin:0 auto;max-width:480px">Full findings, AISO results, and 90-day roadmap.</p>
+      <form onsubmit="capture(event)">
+        <input type="email" required placeholder="you@yourbusiness.co.uk" id="email">
+        <button class="btn btn-primary" type="submit">Email report</button>
+      </form>
+      <p class="consent">By requesting you agree to web-aviso contacting you (UK GDPR). Unsubscribe anytime.</p>
+      <div id="captured" class="hidden" style="margin-top:12px;color:var(--good);font-weight:500;font-size:14px">✓ Thanks! Your report is on its way (demo).</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Compared to paid tools</h2>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="table">
+        <tr><th></th><th>SEMrush / Ahrefs</th><th>web-aviso</th></tr>
+        <tr><td>Price</td><td>£79–£129/mo</td><td><span class="win">Free</span></td></tr>
+        <tr><td>Time to answer</td><td>Hours</td><td><span class="win">2 minutes</span></td></tr>
+        <tr><td>Output</td><td>Dashboards</td><td><span class="win">Plain English</span></td></tr>
+        <tr><td>AI search</td><td>Limited</td><td><span class="win">Built-in</span></td></tr>
+        <tr><td>Support</td><td>DIY</td><td><span class="win">Done-for-you option</span></td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="final">
+      <h2>Want this fixed, not just found?</h2>
+      <p>Book a free 15-minute call. We'll walk through your results.</p>
+      <a class="btn" href="https://www.web-aviso.com/contact">Book strategy call →</a>
+    </div>
+  </section>
+</main>
+
+<footer>web-aviso · Free Digital Marketing Audit · © 2026</footer>
+
+<script>
+function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+function colour(v){return v>=70?'#16a34a':v>=45?'#ca8a04':'#dc2626'}
+let lastScore=54;
+
+function runAudit(){
+  const url=(document.getElementById('url').value||'your site').trim();
+  const comp=document.getElementById('competitor').value.trim();
+  document.getElementById('urlLabel').textContent=`Audited: ${url} · ${new Date().toLocaleDateString('en-GB')}`;
+
+  const subs=[
+    {k:'SEO',v:rnd(40,75)},{k:'AI Visibility',v:rnd(20,55)},{k:'Content',v:rnd(45,80)},
+    {k:'Technical',v:rnd(50,85)},{k:'Local',v:rnd(35,70)},{k:'Trust',v:rnd(40,80)}
+  ];
+  const overall=Math.round(subs.reduce((a,b)=>a+b.v,0)/subs.length); lastScore=overall;
+
+  const ring=document.getElementById('ringFill');
+  const off=390-(390*overall/100);
+  ring.style.transition='stroke-dashoffset 1s ease';
+  ring.style.strokeDashoffset=off;
+  animate('scoreNum',overall);
+
+  const gradeEl=document.getElementById('grade');
+  const grade=overall>=70?'Strong':overall>=45?'Average':'At risk';
+  const pill=overall>=70?'good':overall>=45?'warn':'bad';
+  const desc=overall>=70?'Room to win':overall>=45?'Clear quick wins':'Competitors ahead';
+  gradeEl.innerHTML=`<span class="pill ${pill}">${grade} · ${desc}</span>`;
+  document.getElementById('scoreText').textContent=`${overall}/100 across 6 pillars.`;
+
+  document.getElementById('subscores').innerHTML=subs.map(s=>`
+    <div class="ss">
+      <div class="top"><span>${s.k}</span><span style="color:${colour(s.v)};font-weight:500">${s.v>=70?'Good':s.v>=45?'OK':'Weak'}</span></div>
+      <div class="val" style="color:${colour(s.v)}">${s.v}</div>
+      <div class="bar"><i style="width:${s.v}%;background:${colour(s.v)}"></i></div>
+    </div>`).join('');
+
+  buildAISO(); buildPlan(); buildLocal();
+  if(comp) buildCompare(url,comp,overall); else document.getElementById('cmpWrap').innerHTML='<p class="sub" style="margin:0">Add a competitor to compare.</p>';
+  calcROI();
+}
+function animate(id,t){const el=document.getElementById(id);let c=0;const s=Math.max(1,Math.round(t/40));const i=setInterval(()=>{c+=s;if(c>=t){c=t;clearInterval(i)}el.textContent=c},16)}
+function buildAISO(){
+  const checks=[
+    {n:'ChatGPT discovery',s:Math.random()>.5?'part':'no'},
+    {n:'Google AI Overviews',s:Math.random()>.6?'ok':'no'},
+    {n:'Perplexity accuracy',s:Math.random()>.5?'part':'ok'},
+    {n:'Schema markup',s:Math.random()>.5?'ok':'no'},
+    {n:'NAP consistency',s:Math.random()>.4?'part':'ok'}
+  ]; const m={ok:['ok','Pass'],part:['part','Partial'],no:['no','Fail']};
+  document.getElementById('aisoRows').innerHTML=checks.map(c=>`<div class="row"><span>${c.n}</span><span class="tag ${m[c.s][0]}">${m[c.s][1]}</span></div>`).join('');
+}
+function buildPlan(){
+  const groups=[
+    {label:'This week',items:[
+      {t:'Add meta titles & descriptions',why:'Missing on key pages.',i:'High',e:'Low',l:'technical-seo'},
+      {t:'Complete Google Business Profile',why:'Drives map pack visibility.',i:'High',e:'Low',l:'local-seo-audit'}
+    ]},
+    {label:'This month',items:[
+      {t:'Add schema for AI search',why:'Helps AI assistants recommend you.',i:'High',e:'Medium',l:'aiso-audit'},
+      {t:'Publish 2 local pages',why:'Capture buyer-intent searches.',i:'Medium',e:'Medium',l:'content-marketing'}
+    ]},
+    {label:'Strategic',items:[
+      {t:'Improve Core Web Vitals',why:'Speed impacts rankings.',i:'High',e:'High',l:'technical-seo'},
+      {t:'Build citations & links',why:'Close authority gap.',i:'High',e:'High',l:'citation-services'}
+    ]}
+  ];
+  document.getElementById('planGroups').innerHTML=groups.map(g=>`
+    <div class="group"><h3>${g.label}</h3>
+      ${g.items.map(it=>`
+        <div class="item">
+          <b>${it.t}</b>
+          <div class="why">${it.why}</div>
+          <div class="meta">Impact ${it.i} · Effort ${it.e}</div>
+          <div class="cta-inline"><a href="https://www.web-aviso.com/${it.l}">Fix for me →</a></div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+function buildLocal(){
+  document.getElementById('localRows').innerHTML=[
+    ['GBP completeness',rnd(40,90)+'%'],
+    ['NAP consistency',Math.random()>.5?'Consistent':'3 mismatches'],
+    ['Reviews',`${rnd(4,60)} (${(3.5+Math.random()*1.4).toFixed(1)})`],
+    ['Local visibility',`${rnd(0,3)}/5 keywords`]
+  ].map(r=>`<div class="row"><span>${r[0]}</span><span style="margin-left:auto;font-weight:500">${r[1]}</span></div>`).join('');
+}
+function buildCompare(y,t,s){
+  const rows=[['Score',s,Math.min(99,rnd(s-12,s+18))],['Keywords',rnd(20,120),rnd(60,300)],['Authority',rnd(8,30),rnd(15,45)],['Traffic',rnd(200,1500),rnd(600,4000)]];
+  document.getElementById('cmpWrap').innerHTML=`<table class="table"><tr><th>Metric</th><th>You</th><th>Them</th></tr>${rows.map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td><td>${r[2]}</td></tr>`).join('')}</table>`;
+}
+function calcROI(){const v=+visitors.value||0,c=(+conv.value||0)/100,a=+aov.value||0,gap=(100-lastScore)/100,uplift=0.15+gap*0.6,extra=Math.round(v*c*a*uplift);roiResult.textContent='£'+extra.toLocaleString();roiNote.textContent=`≈${Math.round(uplift*100)}% potential uplift`}
+function capture(e){e.preventDefault();captured.classList.remove('hidden')}
+window.addEventListener('DOMContentLoaded',runAudit);
+</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0aa6ff37eb0de62',t:'MTc4MTI4Mzg5NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
