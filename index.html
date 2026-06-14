@@ -364,6 +364,30 @@ async function runAudit(){
   pageSpeed = pageSpeedResult.status==='fulfilled' ? pageSpeedResult.value : fallbackPageSpeed(url);
   aiso = aisoResult.status==='fulfilled' ? aisoResult.value : fallbackAiso();
 
+  let competitorData=null;
+  if(comp){
+    const competitorUrl=normaliseUrl(comp);
+    const [competitorSeoResult,competitorPageSpeedResult]=await Promise.allSettled([
+      getJSON(`/api/seo?url=${encodeURIComponent(competitorUrl)}`),
+      getJSON(`/api/pagespeed?url=${encodeURIComponent(fullUrl(competitorUrl))}`)
+    ]);
+    const competitorSeo=competitorSeoResult.status==='fulfilled' ? competitorSeoResult.value : fallbackSeo(competitorUrl);
+    const competitorPageSpeed=competitorPageSpeedResult.status==='fulfilled' ? competitorPageSpeedResult.value : fallbackPageSpeed(competitorUrl);
+    const competitorScore=clamp(
+      (scoreSeo(competitorSeo,competitorPageSpeed)*0.45)+
+      (clamp(competitorPageSpeed.performance||0)*0.30)+
+      (scoreContent(competitorSeo)*0.15)+
+      (scoreTrust(competitorSeo,{consistency:'partial'})*0.10)
+    );
+    competitorData={
+      domain:competitorUrl,
+      seo:competitorSeo,
+      pageSpeed:competitorPageSpeed,
+      score:competitorScore,
+      usedFallback: competitorSeoResult.status!=='fulfilled' || competitorPageSpeedResult.status!=='fulfilled' || !!competitorSeo.demo || !!competitorPageSpeed.demo
+    };
+  }
+
   latestAudit={url,seo,pageSpeed,aiso,usedFallback:{
     seo:seoResult.status!=='fulfilled' || !!seo.demo,
     pageSpeed:pageSpeedResult.status!=='fulfilled' || !!pageSpeed.demo,
@@ -408,7 +432,7 @@ async function runAudit(){
     </div>`).join('');
 
   buildAISO(aiso); buildPlan(subs,pageSpeed,seo,aiso); buildLocal(aiso); buildSeoSnapshot(seo,pageSpeed);
-  if(comp) buildCompare(url,comp,overall,seo); else document.getElementById('cmpWrap').innerHTML='<p class="sub" style="margin:0">Add a competitor to compare.</p>';
+  if(competitorData) buildCompare(url,overall,seo,pageSpeed,competitorData); else document.getElementById('cmpWrap').innerHTML='<p class="sub" style="margin:0">Add a competitor to compare.</p>';
   calcROI();
   setLoading(false);
 }
@@ -474,15 +498,23 @@ function buildSeoSnapshot(seo,pageSpeed){
     ['PageSpeed SEO',`${pageSpeed.seo||0}/100`]
   ].map(r=>`<div class="row"><span>${r[0]}</span><span style="margin-left:auto;font-weight:500">${r[1]}</span></div>`).join('');
 }
-function buildCompare(y,t,s,seo){
-  const theirScore=Math.min(99,Math.max(1,rnd(s-12,s+18)));
+function buildCompare(yourDomain,yourScore,yourSeo,yourPageSpeed,competitor){
+  const competitorSeo=competitor.seo||{};
+  const competitorPageSpeed=competitor.pageSpeed||{};
   const rows=[
-    ['Score',s,theirScore],
-    ['Keywords',seo.keywords||0,rnd(Math.max(10,(seo.keywords||20)*0.8),Math.max(30,(seo.keywords||20)*2.2))],
-    ['Authority',seo.domainAuthority||0,rnd(Math.max(5,(seo.domainAuthority||10)-5),Math.max(20,(seo.domainAuthority||10)+18))],
-    ['Traffic',seo.traffic||0,rnd(Math.max(50,(seo.traffic||200)*0.7),Math.max(300,(seo.traffic||200)*2.5))]
+    ['Score',yourScore,competitor.score],
+    ['Keywords',yourSeo.keywords||0,competitorSeo.keywords||0],
+    ['Authority',yourSeo.domainAuthority||0,competitorSeo.domainAuthority||0],
+    ['Traffic',yourSeo.traffic||0,competitorSeo.traffic||0],
+    ['PageSpeed',yourPageSpeed.performance||0,competitorPageSpeed.performance||0]
   ];
-  document.getElementById('cmpWrap').innerHTML=`<table class="table"><tr><th>Metric</th><th>You</th><th>Them</th></tr>${rows.map(r=>`<tr><td>${r[0]}</td><td><b>${Number(r[1]).toLocaleString('en-GB')}</b></td><td>${Number(r[2]).toLocaleString('en-GB')}</td></tr>`).join('')}</table>`;
+  const note=competitor.usedFallback ? '<p class="sub" style="margin:10px 0 0;font-size:12px">Competitor fallback used because one competitor API failed.</p>' : '';
+  document.getElementById('cmpWrap').innerHTML=`
+    <table class="table">
+      <tr><th>Metric</th><th>${yourDomain}</th><th>${competitor.domain}</th></tr>
+      ${rows.map(r=>`<tr><td>${r[0]}</td><td><b>${Number(r[1]).toLocaleString('en-GB')}</b></td><td>${Number(r[2]).toLocaleString('en-GB')}</td></tr>`).join('')}
+    </table>
+    ${note}`;
 }
 function calcROI(){
   const visitorsEl=document.getElementById('visitors');
@@ -496,5 +528,5 @@ function calcROI(){
 }
 window.addEventListener('DOMContentLoaded',runAudit);
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0ba4a6c9aed08b9',t:'MTc4MTQ1MDEyOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
