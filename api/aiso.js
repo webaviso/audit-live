@@ -1,3 +1,16 @@
+function demoAiso(domain) {
+  return {
+    demo: true,
+    domain,
+    chatgpt: Math.random() > 0.5 ? 'visible' : 'missing',
+    perplexity: Math.random() > 0.4 ? 'visible' : 'partial',
+    googleAI: Math.random() > 0.6 ? 'visible' : 'missing',
+    schema: Math.random() > 0.5,
+    consistency: 'partial',
+    summary: 'Demo AI visibility estimate.'
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
@@ -6,20 +19,14 @@ export default async function handler(req, res) {
   const { url, business } = req.query;
   if (!url) return res.status(400).json({ error: 'Missing ?url=' });
 
+  const domain = url.replace(/^https?:\/\//, '').split('/')[0];
   const key = process.env.OPENAI_KEY;
+
   if (!key) {
-    return res.status(200).json({
-      demo: true,
-      chatgpt: Math.random() > 0.5 ? 'visible' : 'missing',
-      perplexity: Math.random() > 0.4 ? 'visible' : 'partial',
-      googleAI: Math.random() > 0.6 ? 'visible' : 'missing',
-      schema: Math.random() > 0.5,
-      consistency: 'partial'
-    });
+    return res.status(200).json(demoAiso(domain));
   }
 
   try {
-    const domain = url.replace(/^https?:\/\//, '').split('/')[0];
     const name = business || domain;
 
     const prompt = `You are an AI search auditor. For the UK business "${name}" (${domain}), answer in JSON only:
@@ -42,13 +49,36 @@ export default async function handler(req, res) {
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.2,
-        response_format: { type: "json_object" }
+        response_format: { type: 'json_object' }
       })
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return res.status(200).json({
+        ...demoAiso(domain),
+        openaiError: data.error?.message || 'OpenAI request failed'
+      });
+    }
+
     const content = data.choices?.[0]?.message?.content;
-    const result = JSON.parse(content);
+    if (!content) {
+      return res.status(200).json({
+        ...demoAiso(domain),
+        openaiError: 'OpenAI returned no content'
+      });
+    }
+
+    let result;
+    try {
+      result = JSON.parse(content);
+    } catch {
+      return res.status(200).json({
+        ...demoAiso(domain),
+        openaiError: 'OpenAI returned invalid JSON'
+      });
+    }
 
     res.status(200).json({
       ...result,
@@ -56,6 +86,9 @@ export default async function handler(req, res) {
       timestamp: new Date().toISOString()
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(200).json({
+      ...demoAiso(domain),
+      openaiError: err.message
+    });
   }
 }
