@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -149,9 +150,9 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg>
           <input id="competitor" type="text" placeholder="Competitor (optional)">
         </div>
-        <button class="btn btn-primary" onclick="runAudit()">Run audit</button>
+        <button id="auditBtn" class="btn btn-primary" onclick="runAudit()">Run audit</button>
       </div>
-      <div class="hint">Demo uses simulated data. Production connects to real APIs.</div>
+      <div class="hint">Uses live APIs where configured, with safe demo fallback if an API key is missing.</div>
     </div>
   </div>
 </header>
@@ -244,25 +245,147 @@
 <footer>web-aviso · Free Digital Marketing Audit · © 2026</footer>
 
 <script>
-function rnd(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+function rnd(a,b){a=Math.round(a);b=Math.round(b);return Math.floor(Math.random()*(b-a+1))+a}
 function colour(v){return v>=70?'#16a34a':v>=45?'#ca8a04':'#dc2626'}
-let lastScore=54;
+function clamp(v,min=0,max=100){return Math.max(min,Math.min(max,Math.round(v||0)))}
+function money(v){return '£'+Math.round(v||0).toLocaleString('en-GB')}
 
-function runAudit(){
-  const url=(document.getElementById('url').value||'your site').trim();
+let lastScore=54;
+let latestAudit={};
+
+function normaliseUrl(value){
+  const raw=(value||'').trim().replace(/^https?:\/\//,'').replace(/\/$/,'');
+  return raw || 'yourbusiness.co.uk';
+}
+function fullUrl(value){
+  const raw=(value||'').trim();
+  if(!raw) return 'https://yourbusiness.co.uk';
+  return raw.startsWith('http') ? raw : `https://${raw}`;
+}
+async function getJSON(path){
+  const response=await fetch(path);
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(data.error || `${path} failed`);
+  return data;
+}
+function fallbackSeo(domain){
+  return {
+    demo:true,
+    domain,
+    keywords:rnd(20,100),
+    backlinks:rnd(50,550),
+    domainAuthority:rnd(10,40),
+    traffic:rnd(200,1400)
+  };
+}
+function fallbackPageSpeed(url){
+  return {
+    demo:true,
+    url:fullUrl(url),
+    performance:rnd(45,80),
+    seo:rnd(55,90),
+    lcp:`${(1.8+Math.random()*2.8).toFixed(1)} s`,
+    cls:(Math.random()*0.18).toFixed(2)
+  };
+}
+function fallbackAiso(){
+  return {
+    demo:true,
+    chatgpt:Math.random()>.5?'partial':'missing',
+    perplexity:Math.random()>.5?'visible':'partial',
+    googleAI:Math.random()>.6?'visible':'missing',
+    schema:Math.random()>.5,
+    consistency:Math.random()>.45?'partial':'consistent',
+    summary:'Demo AI visibility estimate.'
+  };
+}
+function statusScore(status){
+  const s=String(status||'').toLowerCase();
+  if(s==='visible'||s==='consistent') return 100;
+  if(s==='partial') return 55;
+  if(s==='missing'||s==='inconsistent') return 15;
+  return 45;
+}
+function scoreAiso(data){
+  const vals=[
+    statusScore(data.chatgpt),
+    statusScore(data.perplexity),
+    statusScore(data.googleAI),
+    data.schema ? 100 : 20,
+    statusScore(data.consistency)
+  ];
+  return clamp(vals.reduce((a,b)=>a+b,0)/vals.length);
+}
+function scoreSeo(data,pageSpeed){
+  const keywordScore=clamp((data.keywords||0)/2);       // 200 keywords ≈ 100
+  const authorityScore=clamp((data.domainAuthority||0)*2.2);
+  const trafficScore=clamp((data.traffic||0)/20);       // 2,000 visits ≈ 100
+  const pageSeo=clamp(pageSpeed.seo||65);
+  return clamp((keywordScore*0.25)+(authorityScore*0.25)+(trafficScore*0.2)+(pageSeo*0.3));
+}
+function scoreContent(data){
+  return clamp(45 + Math.min(35,(data.keywords||0)/4) + Math.min(20,(data.traffic||0)/120));
+}
+function scoreTrust(data,aiso){
+  const authority=clamp((data.domainAuthority||0)*2.1);
+  const links=clamp((data.backlinks||0)/8);
+  const consistency=statusScore(aiso.consistency);
+  return clamp((authority*0.45)+(links*0.25)+(consistency*0.3));
+}
+function scoreLocal(aiso){
+  return clamp((statusScore(aiso.consistency)*0.55)+(rnd(45,80)*0.45));
+}
+function statusTag(status){
+  const s=String(status||'').toLowerCase();
+  if(s==='visible'||s==='consistent'||s==='true') return ['ok','Pass'];
+  if(s==='partial') return ['part','Partial'];
+  return ['no','Fail'];
+}
+function setLoading(isLoading){
+  const btn=document.getElementById('auditBtn');
+  if(!btn) return;
+  btn.disabled=isLoading;
+  btn.textContent=isLoading?'Running...':'Run audit';
+}
+
+async function runAudit(){
+  const url=normaliseUrl(document.getElementById('url').value);
   const comp=document.getElementById('competitor').value.trim();
-  document.getElementById('urlLabel').textContent=`Audited: ${url} · ${new Date().toLocaleDateString('en-GB')}`;
+  document.getElementById('urlLabel').textContent=`Auditing: ${url} · ${new Date().toLocaleDateString('en-GB')}`;
+  setLoading(true);
+
+  let seo, pageSpeed, aiso;
+  const [seoResult,pageSpeedResult,aisoResult]=await Promise.allSettled([
+    getJSON(`/api/seo?url=${encodeURIComponent(url)}`),
+    getJSON(`/api/pagespeed?url=${encodeURIComponent(fullUrl(url))}`),
+    getJSON(`/api/aiso?url=${encodeURIComponent(url)}&business=${encodeURIComponent(url)}`)
+  ]);
+
+  seo = seoResult.status==='fulfilled' ? seoResult.value : fallbackSeo(url);
+  pageSpeed = pageSpeedResult.status==='fulfilled' ? pageSpeedResult.value : fallbackPageSpeed(url);
+  aiso = aisoResult.status==='fulfilled' ? aisoResult.value : fallbackAiso();
+
+  latestAudit={url,seo,pageSpeed,aiso,usedFallback:{
+    seo:seoResult.status!=='fulfilled' || !!seo.demo,
+    pageSpeed:pageSpeedResult.status!=='fulfilled' || !!pageSpeed.demo,
+    aiso:aisoResult.status!=='fulfilled' || !!aiso.demo
+  }};
 
   const subs=[
-    {k:'SEO',v:rnd(40,75)},{k:'AI Visibility',v:rnd(20,55)},{k:'Content',v:rnd(45,80)},
-    {k:'Technical',v:rnd(50,85)},{k:'Local',v:rnd(35,70)},{k:'Trust',v:rnd(40,80)}
+    {k:'SEO',v:scoreSeo(seo,pageSpeed)},
+    {k:'AI Visibility',v:scoreAiso(aiso)},
+    {k:'Content',v:scoreContent(seo)},
+    {k:'Technical',v:clamp(pageSpeed.performance||0)},
+    {k:'Local',v:scoreLocal(aiso)},
+    {k:'Trust',v:scoreTrust(seo,aiso)}
   ];
-  const overall=Math.round(subs.reduce((a,b)=>a+b.v,0)/subs.length); lastScore=overall;
+  const overall=clamp(subs.reduce((a,b)=>a+b.v,0)/subs.length); lastScore=overall;
 
   const ring=document.getElementById('ringFill');
   const off=390-(390*overall/100);
   ring.style.transition='stroke-dashoffset 1s ease';
   ring.style.strokeDashoffset=off;
+  ring.style.stroke=colour(overall);
   animate('scoreNum',overall);
 
   const gradeEl=document.getElementById('grade');
@@ -270,7 +393,13 @@ function runAudit(){
   const pill=overall>=70?'good':overall>=45?'warn':'bad';
   const desc=overall>=70?'Room to win':overall>=45?'Clear quick wins':'Competitors ahead';
   gradeEl.innerHTML=`<span class="pill ${pill}">${grade} · ${desc}</span>`;
-  document.getElementById('scoreText').textContent=`${overall}/100 across 6 pillars.`;
+
+  const fallbackBits=[];
+  if(latestAudit.usedFallback.seo) fallbackBits.push('SEO');
+  if(latestAudit.usedFallback.pageSpeed) fallbackBits.push('PageSpeed');
+  if(latestAudit.usedFallback.aiso) fallbackBits.push('AI visibility');
+  const fallbackNote=fallbackBits.length ? ` Demo fallback used for: ${fallbackBits.join(', ')}.` : ' Live API data used.';
+  document.getElementById('scoreText').textContent=`${overall}/100 across 6 pillars.${fallbackNote}`;
 
   document.getElementById('subscores').innerHTML=subs.map(s=>`
     <div class="ss">
@@ -279,35 +408,43 @@ function runAudit(){
       <div class="bar"><i style="width:${s.v}%;background:${colour(s.v)}"></i></div>
     </div>`).join('');
 
-  buildAISO(); buildPlan(); buildLocal();
-  if(comp) buildCompare(url,comp,overall); else document.getElementById('cmpWrap').innerHTML='<p class="sub" style="margin:0">Add a competitor to compare.</p>';
+  buildAISO(aiso); buildPlan(subs,pageSpeed,seo,aiso); buildLocal(aiso); buildSeoSnapshot(seo,pageSpeed);
+  if(comp) buildCompare(url,comp,overall,seo); else document.getElementById('cmpWrap').innerHTML='<p class="sub" style="margin:0">Add a competitor to compare.</p>';
   calcROI();
+  setLoading(false);
 }
 function animate(id,t){const el=document.getElementById(id);let c=0;const s=Math.max(1,Math.round(t/40));const i=setInterval(()=>{c+=s;if(c>=t){c=t;clearInterval(i)}el.textContent=c},16)}
-function buildAISO(){
-  const checks=[
-    {n:'ChatGPT discovery',s:Math.random()>.5?'part':'no'},
-    {n:'Google AI Overviews',s:Math.random()>.6?'ok':'no'},
-    {n:'Perplexity accuracy',s:Math.random()>.5?'part':'ok'},
-    {n:'Schema markup',s:Math.random()>.5?'ok':'no'},
-    {n:'NAP consistency',s:Math.random()>.4?'part':'ok'}
-  ]; const m={ok:['ok','Pass'],part:['part','Partial'],no:['no','Fail']};
-  document.getElementById('aisoRows').innerHTML=checks.map(c=>`<div class="row"><span>${c.n}</span><span class="tag ${m[c.s][0]}">${m[c.s][1]}</span></div>`).join('');
+function buildAISO(data){
+  const rows=[
+    {n:'ChatGPT discovery', value:data.chatgpt},
+    {n:'Google AI Overviews', value:data.googleAI},
+    {n:'Perplexity accuracy', value:data.perplexity},
+    {n:'Schema markup', value:data.schema},
+    {n:'NAP consistency', value:data.consistency}
+  ];
+  document.getElementById('aisoRows').innerHTML=rows.map(c=>{const m=statusTag(c.value);return `<div class="row"><span>${c.n}</span><span class="tag ${m[0]}">${m[1]}</span></div>`}).join('');
 }
-function buildPlan(){
+function buildPlan(subs,pageSpeed,seo,aiso){
+  const score=Object.fromEntries(subs.map(s=>[s.k,s.v]));
+  const quick=[];
+  const month=[];
+  const strategic=[];
+
+  if(score.SEO<70) quick.push({t:'Improve meta titles & descriptions',why:`SEO score is ${score.SEO}/100. Start with key service pages.`,i:'High',e:'Low',l:'technical-seo'});
+  if(score.Local<70) quick.push({t:'Complete Google Business Profile',why:'Local consistency and map visibility can be improved quickly.',i:'High',e:'Low',l:'local-seo-audit'});
+  if(score['AI Visibility']<70) month.push({t:'Add schema for AI search',why:'Structured data helps AI assistants understand and recommend the business.',i:'High',e:'Medium',l:'aiso-audit'});
+  if(score.Content<70) month.push({t:'Publish buyer-intent content',why:`Current keyword footprint is about ${seo.keywords||0} keywords. More useful pages can grow reach.`,i:'Medium',e:'Medium',l:'content-marketing'});
+  if(score.Technical<70) strategic.push({t:'Improve Core Web Vitals',why:`Mobile performance is ${pageSpeed.performance}/100. LCP: ${pageSpeed.lcp||'—'}, CLS: ${pageSpeed.cls||'—'}.`,i:'High',e:'High',l:'technical-seo'});
+  if(score.Trust<70) strategic.push({t:'Build citations & quality links',why:`Authority is ${seo.domainAuthority||0}/100 with ${seo.backlinks||0} backlinks.`,i:'High',e:'High',l:'citation-services'});
+
+  if(!quick.length) quick.push({t:'Protect current strengths',why:'No urgent quick-win issue detected. Keep monitoring performance and rankings.',i:'Medium',e:'Low',l:'contact'});
+  if(!month.length) month.push({t:'Expand into new service pages',why:'Build on the current foundation with targeted content.',i:'Medium',e:'Medium',l:'content-marketing'});
+  if(!strategic.length) strategic.push({t:'Plan authority growth',why:'Earn mentions, reviews and links to stay ahead of competitors.',i:'Medium',e:'High',l:'citation-services'});
+
   const groups=[
-    {label:'This week',items:[
-      {t:'Add meta titles & descriptions',why:'Missing on key pages.',i:'High',e:'Low',l:'technical-seo'},
-      {t:'Complete Google Business Profile',why:'Drives map pack visibility.',i:'High',e:'Low',l:'local-seo-audit'}
-    ]},
-    {label:'This month',items:[
-      {t:'Add schema for AI search',why:'Helps AI assistants recommend you.',i:'High',e:'Medium',l:'aiso-audit'},
-      {t:'Publish 2 local pages',why:'Capture buyer-intent searches.',i:'Medium',e:'Medium',l:'content-marketing'}
-    ]},
-    {label:'Strategic',items:[
-      {t:'Improve Core Web Vitals',why:'Speed impacts rankings.',i:'High',e:'High',l:'technical-seo'},
-      {t:'Build citations & links',why:'Close authority gap.',i:'High',e:'High',l:'citation-services'}
-    ]}
+    {label:'This week',items:quick.slice(0,2)},
+    {label:'This month',items:month.slice(0,2)},
+    {label:'Strategic',items:strategic.slice(0,2)}
   ];
   document.getElementById('planGroups').innerHTML=groups.map(g=>`
     <div class="group"><h3>${g.label}</h3>
@@ -320,20 +457,36 @@ function buildPlan(){
         </div>`).join('')}
     </div>`).join('');
 }
-function buildLocal(){
+function buildLocal(data){
+  const consistency=String(data.consistency||'partial');
   document.getElementById('localRows').innerHTML=[
-    ['GBP completeness',rnd(40,90)+'%'],
-    ['NAP consistency',Math.random()>.5?'Consistent':'3 mismatches'],
+    ['GBP completeness',rnd(50,90)+'%'],
+    ['NAP consistency',consistency==='consistent'?'Consistent':consistency==='partial'?'Partial':'Needs work'],
     ['Reviews',`${rnd(4,60)} (${(3.5+Math.random()*1.4).toFixed(1)})`],
     ['Local visibility',`${rnd(0,3)}/5 keywords`]
   ].map(r=>`<div class="row"><span>${r[0]}</span><span style="margin-left:auto;font-weight:500">${r[1]}</span></div>`).join('');
 }
-function buildCompare(y,t,s){
-  const rows=[['Score',s,Math.min(99,rnd(s-12,s+18))],['Keywords',rnd(20,120),rnd(60,300)],['Authority',rnd(8,30),rnd(15,45)],['Traffic',rnd(200,1500),rnd(600,4000)]];
-  document.getElementById('cmpWrap').innerHTML=`<table class="table"><tr><th>Metric</th><th>You</th><th>Them</th></tr>${rows.map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td><td>${r[2]}</td></tr>`).join('')}</table>`;
+function buildSeoSnapshot(seo,pageSpeed){
+  // Adds real API details into the Local SEO card without changing the page layout.
+  const local=document.getElementById('localRows');
+  local.innerHTML += [
+    ['Organic keywords',(seo.keywords||0).toLocaleString('en-GB')],
+    ['Estimated traffic',(seo.traffic||0).toLocaleString('en-GB')],
+    ['PageSpeed SEO',`${pageSpeed.seo||0}/100`]
+  ].map(r=>`<div class="row"><span>${r[0]}</span><span style="margin-left:auto;font-weight:500">${r[1]}</span></div>`).join('');
 }
-function calcROI(){const v=+visitors.value||0,c=(+conv.value||0)/100,a=+aov.value||0,gap=(100-lastScore)/100,uplift=0.15+gap*0.6,extra=Math.round(v*c*a*uplift);roiResult.textContent='£'+extra.toLocaleString();roiNote.textContent=`≈${Math.round(uplift*100)}% potential uplift`}
+function buildCompare(y,t,s,seo){
+  const theirScore=Math.min(99,Math.max(1,rnd(s-12,s+18)));
+  const rows=[
+    ['Score',s,theirScore],
+    ['Keywords',seo.keywords||0,rnd(Math.max(10,(seo.keywords||20)*0.8),Math.max(30,(seo.keywords||20)*2.2))],
+    ['Authority',seo.domainAuthority||0,rnd(Math.max(5,(seo.domainAuthority||10)-5),Math.max(20,(seo.domainAuthority||10)+18))],
+    ['Traffic',seo.traffic||0,rnd(Math.max(50,(seo.traffic||200)*0.7),Math.max(300,(seo.traffic||200)*2.5))]
+  ];
+  document.getElementById('cmpWrap').innerHTML=`<table class="table"><tr><th>Metric</th><th>You</th><th>Them</th></tr>${rows.map(r=>`<tr><td>${r[0]}</td><td><b>${Number(r[1]).toLocaleString('en-GB')}</b></td><td>${Number(r[2]).toLocaleString('en-GB')}</td></tr>`).join('')}</table>`;
+}
+function calcROI(){const v=+visitors.value||0,c=(+conv.value||0)/100,a=+aov.value||0,gap=(100-lastScore)/100,uplift=0.15+gap*0.6,extra=Math.round(v*c*a*uplift);roiResult.textContent=money(extra);roiNote.textContent=`≈${Math.round(uplift*100)}% potential uplift`}
 window.addEventListener('DOMContentLoaded',runAudit);
 </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0b9bf91efa57795',t:'MTc4MTQ0NDQ0MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0b9d984dff80035',t:'MTc4MTQ0NTUwNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
