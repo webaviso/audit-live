@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en-GB">
 <head>
@@ -365,8 +366,12 @@ async function runAudit(){
   aiso = aisoResult.status==='fulfilled' ? aisoResult.value : fallbackAiso();
 
   let competitorData=null;
+  let competitorMessage='';
   if(comp){
     const competitorUrl=normaliseUrl(comp);
+    if(competitorUrl===url){
+      competitorMessage='Please enter a different competitor website to compare against.';
+    } else {
     const [competitorSeoResult,competitorPageSpeedResult]=await Promise.allSettled([
       getJSON(`/api/seo?url=${encodeURIComponent(competitorUrl)}`),
       getJSON(`/api/pagespeed?url=${encodeURIComponent(fullUrl(competitorUrl))}`)
@@ -386,6 +391,7 @@ async function runAudit(){
       score:competitorScore,
       usedFallback: competitorSeoResult.status!=='fulfilled' || competitorPageSpeedResult.status!=='fulfilled' || !!competitorSeo.demo || !!competitorPageSpeed.demo
     };
+    }
   }
 
   latestAudit={url,seo,pageSpeed,aiso,usedFallback:{
@@ -432,7 +438,9 @@ async function runAudit(){
     </div>`).join('');
 
   buildAISO(aiso); buildPlan(subs,pageSpeed,seo,aiso); buildLocal(aiso); buildSeoSnapshot(seo,pageSpeed);
-  if(competitorData) buildCompare(url,overall,seo,pageSpeed,competitorData); else document.getElementById('cmpWrap').innerHTML='<p class="sub" style="margin:0">Add a competitor to compare.</p>';
+  if(competitorData) buildCompare(url,overall,seo,pageSpeed,competitorData);
+  else if(competitorMessage) document.getElementById('cmpWrap').innerHTML=`<p class="sub" style="margin:0">${competitorMessage}</p>`;
+  else document.getElementById('cmpWrap').innerHTML='<p class="sub" style="margin:0">Add a competitor to compare.</p>';
   calcROI();
   setLoading(false);
 }
@@ -528,5 +536,5 @@ function calcROI(){
 }
 window.addEventListener('DOMContentLoaded',runAudit);
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0bb08b5b84af65c',t:'MTc4MTQ1NzkyMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
